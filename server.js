@@ -176,7 +176,7 @@ app.post('/api/checkout/preference', authenticateToken, async (req, res) => {
             id: itemNormalizado,
             title: titleMap[itemNormalizado],
             quantity: 1,
-            unit_price: 0.01,
+            unit_price: 39.90,
             currency_id: 'BRL',
           }
         ],
@@ -251,6 +251,10 @@ app.post('/api/webhook/mercadopago', async (req, res) => {
 });
 
 // Iniciar Servidor
-app.listen(PORT, () => {
-  console.log(`🚀 Servidor rodando em: http://localhost:${PORT}`);
-});
+if (process.env.NODE_ENV !== 'production') {
+  app.listen(PORT, () => {
+    console.log(`🚀 Servidor rodando localmente em: http://localhost:${PORT}`);
+  });
+}
+
+module.exports = app;
