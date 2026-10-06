@@ -5,7 +5,7 @@ const jwt = require('jsonwebtoken');
 const { MercadoPagoConfig, Preference, Payment } = require('mercadopago');
 require('dotenv').config();
 
-const db = require('./db'); // Conexão MySQL do XAMPP
+const db = require('./db'); // Conexão com o Banco de Dados (db.js)
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -39,6 +39,19 @@ const authenticateToken = (req, res, next) => {
     next();
   });
 };
+
+// ==========================================
+// ROTA DE TESTE BANCO DE DADOS
+// ==========================================
+app.get('/api/test-db', async (req, res) => {
+  try {
+    const [rows] = await db.query('SELECT 1 + 1 AS resultado');
+    res.json({ mensagem: 'Conexão com o Aiven OK!', resultado: rows[0].resultado });
+  } catch (error) {
+    console.error('Erro na base de dados:', error);
+    res.status(500).json({ erro: 'Falha ao conectar no Aiven', detalhe: error.message });
+  }
+});
 
 // ==========================================
 // ROTA 1: CADASTRO DE USUÁRIO
@@ -163,12 +176,10 @@ app.post('/api/checkout/preference', authenticateToken, async (req, res) => {
       hipertrofia: 'Planilha de Hipertrofia - Projeto Nômade'
     };
 
-    // Trata e separa o nome do usuário
     const fullName = user.name ? user.name.trim().split(' ') : ['Usuario'];
     const firstName = fullName[0];
     const lastName = fullName.length > 1 ? fullName.slice(1).join(' ') : 'Nômade';
 
-    // AQUI FICA O preferenceData
     const preferenceData = {
       body: {
         items: [
@@ -185,14 +196,13 @@ app.post('/api/checkout/preference', authenticateToken, async (req, res) => {
           name: firstName,
           surname: lastName
         },
-       external_reference: JSON.stringify({ userId: req.user.id, item: itemNormalizado }),
+        external_reference: JSON.stringify({ userId: req.user.id, item: itemNormalizado }),
         notification_url: 'https://asphaltic-jocosely-alaysia.ngrok-free.dev/api/webhook/mercadopago',
         back_urls: {
           success: 'http://localhost:5000/planilha.html',
           failure: 'http://localhost:5000/checkout.html',
           pending: 'http://localhost:5000/planilha.html'
         }
-        // A linha 'auto_return' foi removida para evitar o erro em localhost
       }
     };
 
@@ -208,12 +218,12 @@ app.post('/api/checkout/preference', authenticateToken, async (req, res) => {
     return res.status(500).json({ error: 'Erro ao criar sessão de pagamento.' });
   }
 });
+
 // ==========================================
-// ROTA 5: WEBHOOK MERCADO PAGO (CORRIGIDA)
+// ROTA 5: WEBHOOK MERCADO PAGO
 // ==========================================
 app.post('/api/webhook/mercadopago', async (req, res) => {
   try {
-    // Tenta capturar o ID do pagamento de várias fontes possíveis na requisição
     const paymentId = 
       req.body?.data?.id || 
       req.query?.id || 
@@ -222,7 +232,6 @@ app.post('/api/webhook/mercadopago', async (req, res) => {
     const type = req.body?.type || req.query?.topic || req.query?.type;
 
     if ((type === 'payment' || req.query?.topic === 'payment') && paymentId) {
-      // Procura os detalhes do pagamento na API do Mercado Pago
       const paymentData = await payment.get({ id: paymentId });
 
       if (paymentData && paymentData.status === 'approved') {
@@ -241,16 +250,16 @@ app.post('/api/webhook/mercadopago', async (req, res) => {
       }
     }
 
-    // Responde 200 OK ao Mercado Pago imediatamente para evitar reenvios desnecessários
     return res.status(200).send('OK');
   } catch (error) {
     console.error('Erro ao processar o Webhook do Mercado Pago:', error.message || error);
-    // Sempre responde 200/204 para evitar que o gateway entre em loop de tentativas
     return res.status(200).send('OK');
   }
 });
 
-// Iniciar Servidor
+// ==========================================
+// INICIAR SERVIDORE
+// ==========================================
 if (process.env.NODE_ENV !== 'production') {
   app.listen(PORT, () => {
     console.log(`🚀 Servidor rodando localmente em: http://localhost:${PORT}`);
