@@ -56,6 +56,9 @@ app.get('/api/test-db', async (req, res) => {
 // ==========================================
 // ROTA 1: CADASTRO DE USUÁRIO
 // ==========================================
+// ==========================================
+// ROTA 1: CADASTRO DE USUÁRIO
+// ==========================================
 app.post('/api/auth/register', async (req, res) => {
   try {
     const { name, email, password } = req.body;
@@ -72,9 +75,10 @@ app.post('/api/auth/register', async (req, res) => {
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
+    // CORREÇÃO: Utilizando os valores 'pending' parametrizados
     const [result] = await db.query(
-      'INSERT INTO users (name, email, password, pay_condicionamento, pay_massa) VALUES (?, ?, ?, "pending", "pending")',
-      [name, email, hashedPassword]
+      'INSERT INTO users (name, email, password, pay_condicionamento, pay_massa) VALUES (?, ?, ?, ?, ?)',
+      [name, email, hashedPassword, 'pending', 'pending']
     );
 
     const userId = result.insertId;
@@ -164,7 +168,7 @@ app.post('/api/checkout/preference', authenticateToken, async (req, res) => {
     const itemNormalizado = (item === 'massa' || item === 'hipertrofia') ? 'hipertrofia' : 'condicionamento';
 
     const [users] = await db.query('SELECT name, email FROM users WHERE id = ?', [req.user.id]);
-    
+
     if (users.length === 0) {
       return res.status(404).json({ error: 'Usuário não encontrado.' });
     }
@@ -224,9 +228,9 @@ app.post('/api/checkout/preference', authenticateToken, async (req, res) => {
 // ==========================================
 app.post('/api/webhook/mercadopago', async (req, res) => {
   try {
-    const paymentId = 
-      req.body?.data?.id || 
-      req.query?.id || 
+    const paymentId =
+      req.body?.data?.id ||
+      req.query?.id ||
       req.query['data.id'];
 
     const type = req.body?.type || req.query?.topic || req.query?.type;
